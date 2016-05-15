@@ -24,9 +24,13 @@ var Engine = (function(global) {
         canvas = doc.createElement('canvas'),
         ctx = canvas.getContext('2d'),
         lastTime;
-
-    canvas.width = 505;
-    canvas.height = 606;
+    
+    /*modified the width and height to allow for different game sizes when starting.
+    * the default is defined in the app.js file
+    * The 101 is the pixel  size of each image.
+    */
+    canvas.width = ba.cols * 101;
+    canvas.height = ba.rows * 101;
     doc.body.appendChild(canvas);
 
     /* This function serves as the kickoff point for the game loop itself
@@ -80,7 +84,7 @@ var Engine = (function(global) {
      */
     function update(dt) {
         updateEntities(dt);
-        // checkCollisions();
+        // checkCollisions();  I chose not to do it here
     }
 
     /* This is called by the update function and loops through all of the
@@ -89,12 +93,18 @@ var Engine = (function(global) {
      * player object. These update methods should focus purely on updating
      * the data/properties related to the object. Do your drawing in your
      * render methods.
+     *
+     * I chose to run a collision detection after each enemy update and 
+     * after each player update.  That way the collisions will be more
+     * realistic and you can't escape as easy when the bug is next to you
      */
     function updateEntities(dt) {
         allEnemies.forEach(function(enemy) {
             enemy.update(dt);
         });
+        checkCollisions();
         player.update();
+        checkCollisions();
     }
 
     /* This function initially draws the "game level", it will then call
@@ -104,19 +114,27 @@ var Engine = (function(global) {
      * they are just drawing the entire screen over and over.
      */
     function render() {
+
+        /*  When there is a level up, the columns and rows advance a row
+         * and column.  This step will make the game board update( get bigger)
+        */
+        canvas.width = ba.cols * 101;
+        canvas.height = ba.rows * 101;
+
         /* This array holds the relative URL to the image used
          * for that particular row of the game level.
+         *
+         * I made the render more dynamic by looping through the images instead 
+         * of hard coding a set number of rows.  This will take in consideration for levels 
+         * with bigger  playing area's to display everything.
          */
         var rowImages = [
-                'images/water-block.png',   // Top row is water
-                'images/stone-block.png',   // Row 1 of 3 of stone
-                'images/stone-block.png',   // Row 2 of 3 of stone
-                'images/stone-block.png',   // Row 3 of 3 of stone
-                'images/grass-block.png',   // Row 1 of 2 of grass
-                'images/grass-block.png'    // Row 2 of 2 of grass
+                'images/water-block.png', // Top row is water
+                'images/stone-block.png',   // Rows of stone
+                'images/grass-block.png'    // Rows of grass
             ],
-            numRows = 6,
-            numCols = 5,
+            numRows = ba.rows,  // automatically resize to current board size
+            numCols = ba.cols,  // automatically resize to current board size
             row, col;
 
         /* Loop through the number of rows and columns we've defined above
@@ -132,11 +150,23 @@ var Engine = (function(global) {
                  * so that we get the benefits of caching these images, since
                  * we're using them over and over.
                  */
-                ctx.drawImage(Resources.get(rowImages[row]), col * 101, row * 83);
+                 // create the first row
+                if(row == 0) {
+                    ctx.drawImage(Resources.get(rowImages[0]), col * 101, row * 83);
+                }
+                // create all the in between bug(enemy) rows
+                if(row > numRows-3) {
+                    ctx.drawImage(Resources.get(rowImages[2]), col * 101, row * 83);
+                }
+                // create the bottom 2 rows as grass rows
+                if(row > 0 && row < numRows-2) {
+                    ctx.drawImage(Resources.get(rowImages[1]), col * 101, row * 83);
+                }
             }
         }
 
         renderEntities();
+        renderLevel(); // reset the first line text info
     }
 
     /* This function is called by the render function and is called on each game
@@ -154,10 +184,46 @@ var Engine = (function(global) {
         player.render();
     }
 
+    /* This function will create the first line text info.  It includes the Level,
+     * number of hits so far in a level, and text for if you got hit, to many hits, 
+     * or made it to the next level.
+    */
+    function renderLevel() {
+        ctx.font = "20pt Impact";
+        ctx.lineWidth = 4;
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "black";
+        ctx.strokeText("Level :" + ba.level,5,100);
+        ctx.fillText("Level :" + ba.level,5,100);
+
+        ctx.strokeText("Hits :" + ba.hits,107,100);
+        ctx.fillText("Hits :" + ba.hits,107,100);
+        
+        // got hit to many time on a level
+        if(ba.resetHit == 1 ) {
+            ctx.strokeText("Too Many Hits...reseting",210,100);
+            ctx.fillText("Too Many Hits...reseting",210,100);
+        }
+
+        // reached the end of a level.  you made it to the water.
+        if(ba.levUp == 1 ) {
+            ctx.strokeText("Leveling Up!...reseting",210,100);
+            ctx.fillText("Leveling Up!...reseting",210,100);
+        }
+
+        //you got hit but not over the max hit amount
+        if(ba.hitMessage == 1 && ba.resetHit == 0) {
+            ctx.strokeText("Bug gotcha!...reseting",210,100);
+            ctx.fillText("Bug gotcha!...reseting",210,100);
+        }
+    }
+
+
     /* This function does nothing but it could have been a good place to
      * handle game reset states - maybe a new game menu or a game over screen
      * those sorts of things. It's only called once by the init() method.
      */
+
     function reset() {
         // noop
     }
@@ -165,13 +231,22 @@ var Engine = (function(global) {
     /* Go ahead and load all of the images we know we're going to need to
      * draw our game level. Then set init as the callback method, so that when
      * all of these images are properly loaded our game will start.
+     *
+     * I included all the other characters to be able to switch them during 
+     * the game.  I also added a reverse bug to go in the other direction 
+     * left to right.
      */
     Resources.load([
         'images/stone-block.png',
         'images/water-block.png',
         'images/grass-block.png',
         'images/enemy-bug.png',
-        'images/char-boy.png'
+        'images/enemy-bug_reverse.png',
+        'images/char-boy.png',
+        'images/char-cat-girl.png',
+        'images/char-horn-girl.png',
+        'images/char-pink-girl.png',
+        'images/char-princess-girl.png'
     ]);
     Resources.onReady(init);
 
