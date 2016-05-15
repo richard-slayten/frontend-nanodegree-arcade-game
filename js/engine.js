@@ -13,7 +13,7 @@
  * the canvas' context (ctx) object globally available to make writing app.js
  * a little simpler to work with.
  */
-
+var ba,allEnemies;
 var Engine = (function(global) {
     /* Predefine the variables we'll be using within this scope,
      * create the canvas element, grab the 2D context for that canvas
@@ -103,8 +103,7 @@ var Engine = (function(global) {
             enemy.update(dt);
         });
         checkCollisions();
-        player.update();
-        checkCollisions();
+
     }
 
     /* This function initially draws the "game level", it will then call
@@ -151,7 +150,7 @@ var Engine = (function(global) {
                  * we're using them over and over.
                  */
                  // create the first row
-                if(row == 0) {
+                if(row === 0) {
                     ctx.drawImage(Resources.get(rowImages[0]), col * 101, row * 83);
                 }
                 // create all the in between bug(enemy) rows
@@ -212,7 +211,7 @@ var Engine = (function(global) {
         }
 
         //you got hit but not over the max hit amount
-        if(ba.hitMessage == 1 && ba.resetHit == 0) {
+        if(ba.hitMessage === 1 && ba.resetHit === 0) {
             ctx.strokeText("Bug gotcha!...reseting",210,100);
             ctx.fillText("Bug gotcha!...reseting",210,100);
         }
